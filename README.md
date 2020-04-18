@@ -3,27 +3,33 @@ Simple Telegram anti-spam Bot written in Python to prevent Crypto/Finance/... sp
 
 # Requirements
 ## Telegram Requirements
-Bot API Key
+- Bot API Key
 
-Admin Group (ban users, see notifications)
+- Admin Group (ban users, see notifications)
 
-Group IDs (add @RawDataBot to group and note chat_id)
+- Group IDs (add @RawDataBot to group and note chat_id)
 
 ## Python requirements
 Python 3.x
+(Python >3.7.x recommended)
 
 ## Libraries
-json
+- json
 
-configparser
+- configparser
 
-mysqlclient
+- mysqlclient
 
-numpy
+- numpy
 
-joblib
+- joblib
 
-python-telegram-bot
+- python-telegram-bot
 
 ## MySQL - Database
-see SQL/anti_spam.sql
+see [anti_spam.sql](SQL/anti_spam.sql)
+
+# Bot Execution
+Simply start via 
+
+`sudo python3 pogoantispambot.py `
