@@ -26,4 +26,4 @@ joblib
 python-telegram-bot
 
 ## MySQL - Database
-see anti_spam.sql
+see SQL/anti_spam.sql
