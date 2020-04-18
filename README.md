@@ -29,6 +29,15 @@ Python 3.x
 ## MySQL - Database
 see [anti_spam.sql](SQL/anti_spam.sql)
 
+# Setup
+- Configure MySQL Database with the included SQL file
+
+- Clone the repository to the server's destination
+
+- Create Bot ID via [Telegram's BotFather bot](https://core.telegram.org/bots#6-botfather)
+
+- Edit and fill all fields in [the config file](python/pogoantispambot.ini) 
+
 # Bot Execution
 Simply start via 
 
