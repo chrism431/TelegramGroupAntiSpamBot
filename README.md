@@ -38,6 +38,8 @@ see [anti_spam.sql](SQL/anti_spam.sql)
 
 - Edit and fill all fields in [the config file](python/pogoantispambot.ini) 
 
+- Add Bot to group which should be watched and make him Administrator so it can delete messages
+
 # Bot Execution
 Simply start via 
 
