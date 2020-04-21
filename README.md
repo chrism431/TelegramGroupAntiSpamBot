@@ -43,4 +43,4 @@ see [anti_spam.sql](SQL/anti_spam.sql)
 # Bot Execution
 Simply start via 
 
-`sudo python3 pogoantispambot.py `
+`python3 pogoantispambot.py `
