@@ -38,9 +38,22 @@ see [anti_spam.sql](SQL/anti_spam.sql)
 
 - Edit and fill all fields in [the config file](python/pogoantispambot.ini) 
 
-- Add Bot to group which should be watched and make him Administrator so it can delete messages and add it to the reporting group so it can notify the group administrators about a detected spam message
+- Add Bot to group which should be watched and make it administrator so it can delete messages and add it to the reporting group so it can notify the group administrators about a detected spam message
 
 # Bot Execution
+## Python
 Simply start via 
 
 `python3 pogoantispambot.py `
+
+## Telegram
+### Commands
+`/start`  Start the bot and see initial menu
+
+`/addblacklistword <word>`  Add a blacklisted word
+
+`/removeblacklistword <word>`  Remove a blacklisted word
+
+`/addgroup <group_id>`  Add a group id to the list of groups - reboot bot after changing the groups
+
+`/removegroup <group_id>`  Remove a group id from the list of groups - reboot bot after changing the groups
