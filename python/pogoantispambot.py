@@ -394,7 +394,7 @@ def handle_new_users(update, context):
         dbglog("{} joined".format(str(user.id)))
         # Add to DB
         sql = """INSERT INTO suspicious_users(`user_id`, `group_id`)
-        SELECT '{}','{}'
+        SELECT '{}','{}' FROM DUAL
         WHERE NOT EXISTS (SELECT id FROM suspicious_users
         WHERE user_id = '{}')""".format(user.id,
                               update.message.chat_id,
