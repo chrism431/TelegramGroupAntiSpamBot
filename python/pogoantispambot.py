@@ -38,37 +38,36 @@ from telegram.error import (TelegramError, Unauthorized, BadRequest,
                             TimedOut, ChatMigrated, NetworkError)
 
 # Constants #
-config_name = 'pogoantispambot.ini'  # local
+CONFIG_NAME = 'pogoantispambot.ini'  # local
 VERSION = 1.0
-python_version = sys.version_info
+PYTHON_VERSION = sys.version_info
 # --------- #
 
 # Config & Logging
-config = None
-#config.read(config_name)
-group_id = 0 #= config['TELEGRAM']['bot_group_id']
-admins = 0 #read_config_int_list('TELEGRAM','bot_admins_ids')
-
-logger = None #logging.getLogger(__name__)
+CONFIG = None
+GROUP_ID = 0
+ADMINS = 0
+UPDATER = None
+LOGGER = None
 
 def reset_config():
     """Read config"""
-    global config, admins, group_id, logger
-    config = configparser.ConfigParser(allow_no_value=True)
-    config.read(config_name)
-    group_id = config['TELEGRAM']['bot_group_id']
-    admins = read_config_int_list('TELEGRAM','bot_admins_ids')
+    global CONFIG, ADMINS, GROUP_ID, LOGGER
+    CONFIG = configparser.ConfigParser(allow_no_value=True)
+    CONFIG.read(CONFIG_NAME)
+    GROUP_ID = CONFIG['TELEGRAM']['bot_group_id']
+    ADMINS = read_config_int_list('TELEGRAM','bot_admins_ids')
 
     # Enable logging
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                 level=logging.INFO,
-                filename=config['SYSTEM']['sys_log_dir'])
-    logger = logging.getLogger(__name__)
+                filename=CONFIG['SYSTEM']['sys_log_dir'])
+    LOGGER = logging.getLogger(__name__)
 
 
 def dbglog(message):
     """Print Debug Logging in the file"""
-    if int(config['SYSTEM']['sys_enable_debug_log']) == 1:
+    if int(CONFIG['SYSTEM']['sys_enable_debug_log']) == 1:
         logging.info(message)
 
 class DB:
@@ -77,10 +76,10 @@ class DB:
 
     def connect(self):
         """Connect to the Database using the given credentials"""
-        self.conn = MySQLdb.connect(host=config['DATABASE']['db_host'],
-                                    user=config['DATABASE']['db_user'],
-                                    passwd=config['DATABASE']['db_password'],
-                                    db=config['DATABASE']['db_name'],
+        self.conn = MySQLdb.connect(host=CONFIG['DATABASE']['db_host'],
+                                    user=CONFIG['DATABASE']['db_user'],
+                                    passwd=CONFIG['DATABASE']['db_password'],
+                                    db=CONFIG['DATABASE']['db_name'],
                                     use_unicode=True,
                                     charset="utf8")
 
@@ -153,14 +152,14 @@ def display_start(update, context):
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    context.bot.send_message(text=config['MESSAGE']['message_disclaimer'],
+    context.bot.send_message(text=CONFIG['MESSAGE']['message_disclaimer'],
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
                     reply_markup=reply_markup)
 
 def start(update, context):
     """/start Command Handler"""
-    logging.info('Bot started by ' + str(update.message.from_user.username))
+    dbglog('Bot started by ' + str(update.message.from_user.username))
     display_start(update, context)
 
 def button(update, context):
@@ -168,10 +167,10 @@ def button(update, context):
     query = update.callback_query
     option = query.data
 
-    if 'start' == option:
+    if option == 'start':
         display_start(update, context)
 
-    if 'status' == option:
+    if option == 'status':
         # TODO: make better
         text = 'Status ✅'
         context.bot.send_message(
@@ -182,8 +181,8 @@ def button(update, context):
             reply_markup=None)
         return
 
-    if 'log' == option:
-        text_tailed = tail(config['SYSTEM']['sys_log_dir'],4)
+    if option == 'log':
+        text_tailed = tail(CONFIG['SYSTEM']['sys_log_dir'],4)
         text = ""
         for item in text_tailed:
             text = text + item + "\n"
@@ -205,7 +204,7 @@ def button(update, context):
             user_id=user_id
         )
         #text = "User {} aus Chat {} entfernt".format(name,chat_id)
-        text = config['BOT']['bot_message_user_removed'].format(name,chat_id)
+        text = CONFIG['BOT']['bot_message_user_removed'].format(name,chat_id)
         context.bot.edit_message_text(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
@@ -215,8 +214,8 @@ def button(update, context):
             reply_markup=None)
         return
 
-    if 'show_blacklist' == option:
-        text = '<b>Blacklist:</b>\n\n' + ', '.join(json.loads(config['BOT']['bot_blacklist']))
+    if option == 'show_blacklist':
+        text = '<b>Blacklist:</b>\n\n' + ', '.join(json.loads(CONFIG['BOT']['bot_blacklist']))
         context.bot.send_message(
             chat_id=query.message.chat_id,
             text=text,
@@ -225,7 +224,7 @@ def button(update, context):
             reply_markup=None)
         return
 
-    if 'statistics' == option:
+    if option == 'statistics':
         db = DB()
         sql_messages = "SELECT COUNT(*) FROM suspicious_messages"
         cursor = db.query(sql_messages)
@@ -234,7 +233,7 @@ def button(update, context):
         cursor = db.query(sql_spam_detected)
         result_spam = cursor.fetchone()[0]
         text = '<b>Statistics:</b>\n\n'
-        text = text + 'Number of groups: {}\n'.format(len([int(x) for x in config.get('TELEGRAM','bot_watch_group_ids').split(',')]))
+        text = text + 'Number of groups: {}\n'.format(len([int(x) for x in CONFIG.get('TELEGRAM','bot_watch_group_ids').split(',')]))
         text = text + 'Total Messages:  {}\n'.format(result_messages)
         text = text + 'Spam Filtered:  {}'.format(result_spam)
 
@@ -257,11 +256,11 @@ def button(update, context):
         inline_cancel_button = [InlineKeyboardButton("<< Cancel", callback_data='start')]
         keyboard.append(inline_cancel_button)
 
-def removekeyword(update,context):
+def removekeyword(update, context):
     """Remove a blacklist entry"""
     #print("args: ",context.args)
     if len(context.args) < 1:
-        text = '<b>Blacklist:</b>\n\n' + ', '.join(json.loads(config['BOT']['bot_blacklist']))
+        text = '<b>Blacklist:</b>\n\n' + ', '.join(json.loads(CONFIG['BOT']['bot_blacklist']))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
@@ -272,17 +271,17 @@ def removekeyword(update,context):
 
         text = 'Removed entries [{}] from Blacklist\n\nNew Blacklist:\n{}'.format(
             ', '.join(str(x) for x in context.args),
-            ', '.join(json.loads(config['BOT']['bot_blacklist'])))
+            ', '.join(json.loads(CONFIG['BOT']['bot_blacklist'])))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
                     reply_markup=None)
 
-def addkeyword(update,context):
+def addkeyword(update, context):
     """Add a blacklist entry"""
     #print("args: ",context.args)
     if len(context.args) < 1:
-        text = '<b>Blacklist:</b>\n\n' + ', '.join(json.loads(config['BOT']['bot_blacklist']))
+        text = '<b>Blacklist:</b>\n\n' + ', '.join(json.loads(CONFIG['BOT']['bot_blacklist']))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
@@ -293,17 +292,17 @@ def addkeyword(update,context):
 
         text = 'Added entries [{}] to Blacklist\n\nNew Blacklist:\n{}'.format(
             ', '.join(str(x) for x in context.args),
-            ', '.join(json.loads(config['BOT']['bot_blacklist'])))
+            ', '.join(json.loads(CONFIG['BOT']['bot_blacklist'])))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
                     reply_markup=None)
 
 
-def addgroup(update,context):
+def addgroup(update, context):
     """Add a group by its ID"""
     if len(context.args) < 1:
-        text = '<b>Groups:</b>\n\n' + json.loads(json.dumps(config['TELEGRAM']['bot_watch_group_ids']))
+        text = '<b>Groups:</b>\n\n' + json.loads(json.dumps(CONFIG['TELEGRAM']['bot_watch_group_ids']))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
@@ -314,16 +313,16 @@ def addgroup(update,context):
 
         text = 'Added entries {} to Groups\n\nNew Groups:\n{}'.format(
             json.dumps(context.args),
-            json.loads(json.dumps(config['TELEGRAM']['bot_watch_group_ids'])))
+            json.loads(json.dumps(CONFIG['TELEGRAM']['bot_watch_group_ids'])))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
                     reply_markup=None)
 
-def removegroup(update,context):
+def removegroup(update, context):
     """Remove a group by its ID"""
     if len(context.args) < 1:
-        text = '<b>Groups:</b>\n\n' + json.loads(json.dumps(config['TELEGRAM']['bot_watch_group_ids']))
+        text = '<b>Groups:</b>\n\n' + json.loads(json.dumps(CONFIG['TELEGRAM']['bot_watch_group_ids']))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
@@ -334,7 +333,7 @@ def removegroup(update,context):
 
         text = 'Removed entries {} from Groups\n\nNew Groups:\n{}'.format(
             json.dumps(context.args),
-            json.loads(json.dumps(config['TELEGRAM']['bot_watch_group_ids'])))
+            json.loads(json.dumps(CONFIG['TELEGRAM']['bot_watch_group_ids'])))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
@@ -342,14 +341,14 @@ def removegroup(update,context):
 
 def add_group_entry(entry):
     """Add a group entry"""
-    grouplist = [int(x) for x in config.get('TELEGRAM','bot_watch_group_ids').split(',')]
+    grouplist = [int(x) for x in CONFIG.get('TELEGRAM','bot_watch_group_ids').split(',')]
     grouplist.append(int(entry))
     grouplist = '{}'.format(','.join(str(x) for x in grouplist))
     edit_config('TELEGRAM', 'bot_watch_group_ids', grouplist)
 
 def remove_group_entry(entry):
     """Remove a group entry"""
-    grouplist = [int(x) for x in config.get('TELEGRAM','bot_watch_group_ids').split(',')]
+    grouplist = [int(x) for x in CONFIG.get('TELEGRAM','bot_watch_group_ids').split(',')]
     grouplist.remove(int(entry))
     grouplist = '{}'.format(','.join(str(x) for x in grouplist))
     edit_config('TELEGRAM', 'bot_watch_group_ids', grouplist)
@@ -371,24 +370,25 @@ def add_blacklist_entry(entry):
 
 def edit_config(section, element, value):
     """Edit and write back element in config file"""
-    config.set(section, element, value)
-    with open(config_name, "w") as f:
-        config.write(f)
+    CONFIG.set(section, element, value)
+    with open(CONFIG_NAME, "w") as _f:
+        CONFIG.write(_f)
 
     # Reread config
     reset_config()
 
 def read_config_int_list(section, element):
     """Read formatted config"""
-    return [int(x) for x in config.get(section, element).split(',')]
+    return [int(x) for x in CONFIG.get(section, element).split(',')]
 
 def read_config_raw(section, element):
     """Read config value"""
-    return json.loads(config[section][element])
+    return json.loads(CONFIG[section][element])
 
 def handle_new_users(update, context):
     """Keep track of joined users"""
-    db = DB()
+    #print("in handle_new_users")
+    _db = DB()
     for user in update.message.new_chat_members:
         #print(str(user.id), " joined")
         dbglog("{} joined".format(str(user.id)))
@@ -399,8 +399,11 @@ def handle_new_users(update, context):
         WHERE user_id = '{}')""".format(user.id,
                               update.message.chat_id,
                               user.id)
-        db.query(sql)
-        db.commit()
+        _db.query(sql)
+        _db.commit()
+    # Remove Status Messages
+    if CONFIG.getboolean('BOT', 'bot_remove_service_messages'):
+        update.message.delete()
 
 
 def handle_edited_messages(update, context):
@@ -437,7 +440,7 @@ def process_message(update, context, message, message_text, user_id):
     """
     #print("Message: {}\n".format(message_text))
 
-    db = DB()
+    _db = DB()
 
     # Convert Text to ascii
     message_text = message_text.encode('ascii', 'replace').decode()
@@ -446,12 +449,12 @@ def process_message(update, context, message, message_text, user_id):
     # Process Data
     features = []
     # [1] = blacklist
-    bad_shortener = json.loads(config['BOT']['bot_blacklist'])
+    bad_shortener = json.loads(CONFIG['BOT']['bot_blacklist'])
     features.append(len([x for x in bad_shortener if x in message_text]))
 
     # [2] = joined_days
     sql = "SELECT DATEDIFF(NOW(),date) FROM `suspicious_users` WHERE `user_id` = '{}'".format(user_id)
-    cursor = db.query(sql)
+    cursor = _db.query(sql)
     result = cursor.fetchone()
     if result is None:
         features.append(10)  # Not in suspicous users
@@ -460,7 +463,7 @@ def process_message(update, context, message, message_text, user_id):
 
     # [3] = num messages
     sql = "SELECT count(*) FROM `suspicious_messages` WHERE `user_id` = '{}'".format(user_id)
-    cursor = db.query(sql)
+    cursor = _db.query(sql)
     result = cursor.fetchone()
     if result is None:
         features.append(0)  # Nothing posted yet
@@ -468,8 +471,8 @@ def process_message(update, context, message, message_text, user_id):
         features.append(result[0])  # message count
 
     #print(features)
-    X = np.array(features).reshape(1, -1)
-    y_pred = clf.predict(X)
+    _x = np.array(features).reshape(1, -1)
+    y_pred = clf.predict(_x)
 
     # Uncomment to track messages via file
     #dbglog("User: {} - predict: {}{} - Message: {}".format(str(user_id),str(y_pred),str(features),message_text))
@@ -496,13 +499,13 @@ def process_message(update, context, message, message_text, user_id):
         spam_msg = spam_msg + spam_chat_message
 
         # Ban option
-        keyboard = [[InlineKeyboardButton((config['BOT']['bot_message_remove_user'].format(spammer)), callback_data='ban:'+spammer+':'+str(user_id)+':'+str(message.chat.id))]]
+        keyboard = [[InlineKeyboardButton((CONFIG['BOT']['bot_message_remove_user'].format(spammer)), callback_data='ban:'+spammer+':'+str(user_id)+':'+str(message.chat.id))]]
 
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         # send message to group
         context.bot.send_message(
-            chat_id=group_id,
+            chat_id=GROUP_ID,
             text=spam_msg,
             parse_mode=ParseMode.HTML,
             disable_web_page_preview=False,
@@ -516,8 +519,8 @@ def process_message(update, context, message, message_text, user_id):
         # save in DB
         sql = """INSERT INTO `kicked_users`(`user_id`, `chat_id`, `time`, `message`)
         VALUES ('{}','{}',NOW(),{!a})""".format(user_id, message.chat.id, str(y_pred)+str(features)+' '+message_text)
-        cursor = db.query(sql)
-        db.commit()
+        cursor = _db.query(sql)
+        _db.commit()
 
     else:
         # Track all messages
@@ -525,25 +528,38 @@ def process_message(update, context, message, message_text, user_id):
             (`user_id`, `group_id`, `message`) \
             VALUES ('{}','{}',{!a})
             """.format(user_id, message.chat.id, str(y_pred)+str(features)+' '+message_text)
-        db.query(sql)
-        db.commit()
-
-
-def remove_service_pin_message(update, context):
-    """Remove the service messages, like 'User joined the group'"""
-    update.message.delete()
-
+        _db.query(sql)
+        _db.commit()
 
 def error(update, context):
     """Log Errors caused by Updates."""
     print('Update "{}" caused error "{}"'.format(update, context.error))
-    logger.warning('Update "%s" caused error "%s"', update, context.error)
+    LOGGER('Update "%s" caused error "%s"', update, context.error)
 
+def start_updater():
+    """Starts the updater"""
+    global UPDATER
+    if UPDATER is not None:
+        UPDATER.stop()
+        print("Updater halted")
+    UPDATER = Updater(CONFIG['TELEGRAM']['bot_api_key'],
+                      request_kwargs={'read_timeout': 10, 'connect_timeout': 10},
+                      use_context=True)
+    print("Updater started")
+
+def start_polling():
+    """Start the polling"""
+    if UPDATER is not None:
+        UPDATER.start_polling()
+        # Run the bot until you press Ctrl-C or the process receives SIGINT,
+        # SIGTERM or SIGABRT. This should be used most of the time, since
+        # start_polling() is non-blocking and will stop the bot gracefully.
+        UPDATER.idle()
 
 def main():
     """main"""
     # Python Version check
-    assert python_version >= (3, 5)
+    assert PYTHON_VERSION >= (3, 5)
 
     # Init config
     reset_config()
@@ -552,45 +568,35 @@ def main():
     init_neural_net()
 
     # Create the EventHandler and pass it your bot's token.
-    updater = Updater(config['TELEGRAM']['bot_api_key'],
-                      request_kwargs={'read_timeout': 10, 'connect_timeout': 10},
-                      use_context=True)
-    # Get the dispatcher to register handlers
-    dp = updater.dispatcher
-    dp.add_handler(CommandHandler('start', start, Filters.user(admins)))
-    dp.add_handler(CommandHandler('removeblacklistword', removekeyword, Filters.user(admins)))
-    dp.add_handler(CommandHandler('addblacklistword', addkeyword, Filters.user(admins)))
+    start_updater()
 
-    dp.add_handler(CommandHandler('addgroup', addgroup, Filters.user(admins)))
-    dp.add_handler(CommandHandler('removegroup', removegroup, Filters.user(admins)))
+    # Get the dispatcher to register handlers
+    dp = UPDATER.dispatcher
+    dp.add_handler(CommandHandler('start', start, Filters.user(ADMINS)))
+    dp.add_handler(CommandHandler('removeblacklistword', removekeyword, Filters.user(ADMINS)))
+    dp.add_handler(CommandHandler('addblacklistword', addkeyword, Filters.user(ADMINS)))
+
+    dp.add_handler(CommandHandler('addgroup', addgroup, Filters.user(ADMINS)))
+    dp.add_handler(CommandHandler('removegroup', removegroup, Filters.user(ADMINS)))
 
 
     dp.add_handler(CallbackQueryHandler(button))
     dp.add_error_handler(error)
 
     # Get New Users
-    group_ids = read_config_int_list('TELEGRAM','bot_watch_group_ids')
+    group_ids = read_config_int_list('TELEGRAM', 'bot_watch_group_ids')
     for _group_id in group_ids:
         # New Users
-        dp.add_handler(MessageHandler(Filters.status_update.new_chat_members & Filters.chat(_group_id), handle_new_users))
+        dp.add_handler(MessageHandler(Filters.status_update & Filters.chat(_group_id), handle_new_users))
         # Edited Messages
         dp.add_handler(MessageHandler(Filters.update.edited_message & Filters.chat(_group_id), handle_edited_messages))
         # All Messages
         dp.add_handler(MessageHandler((Filters.update.message | Filters.forwarded) & Filters.chat(_group_id), handle_messages))
-        # Remove Status Messages
-        if config.getboolean('BOT','bot_remove_service_messages'):
-            dp.add_handler(MessageHandler(Filters.status_update & Filters.chat(_group_id), remove_service_pin_message))
-
-    # Start the Bot
-    updater.start_polling()
 
     print("Bot ready!")
-
-    # Run the bot until you press Ctrl-C or the process receives SIGINT,
-    # SIGTERM or SIGABRT. This should be used most of the time, since
-    # start_polling() is non-blocking and will stop the bot gracefully.
-    updater.idle()
-
+    # Start the Bot
+    UPDATER.start_polling()
+    UPDATER.idle()
 
 if __name__ == '__main__':
     main()
