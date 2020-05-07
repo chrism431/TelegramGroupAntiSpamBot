@@ -204,7 +204,7 @@ def button(update, context):
             user_id=user_id
         )
         #text = "User {} aus Chat {} entfernt".format(name,chat_id)
-        text = CONFIG['BOT']['bot_message_user_removed'].format(name,chat_id)
+        text = CONFIG['BOT']['bot_message_user_removed'].format(name, chat_id)
         context.bot.edit_message_text(
             chat_id=query.message.chat_id,
             message_id=query.message.message_id,
@@ -233,7 +233,7 @@ def button(update, context):
         cursor = db.query(sql_spam_detected)
         result_spam = cursor.fetchone()[0]
         text = '<b>Statistics:</b>\n\n'
-        text = text + 'Number of groups: {}\n'.format(len([int(x) for x in CONFIG.get('TELEGRAM','bot_watch_group_ids').split(',')]))
+        text = text + 'Number of groups: {}\n'.format(len([int(x) for x in CONFIG.get('TELEGRAM', 'bot_watch_group_ids').split(',')]))
         text = text + 'Total Messages:  {}\n'.format(result_messages)
         text = text + 'Spam Filtered:  {}'.format(result_spam)
 
@@ -244,17 +244,6 @@ def button(update, context):
             disable_web_page_preview=True,
             reply_markup=None)
         return
-
-    if 'remove_blacklist' == option:
-        blacklist = read_config_raw('BOT','bot_blacklist')
-        # Create reply keyboard entries for all blacklist entries
-        keyboard = []
-        for entry in blacklist:
-            keyboard_entry = []
-            keyboard_entry.append(InlineKeyboardButton("{}".format(entry), callback_data='remove_blacklist_entry:'+entry))
-            keyboard.append(keyboard_entry)
-        inline_cancel_button = [InlineKeyboardButton("<< Cancel", callback_data='start')]
-        keyboard.append(inline_cancel_button)
 
 def removekeyword(update, context):
     """Remove a blacklist entry"""
@@ -298,64 +287,73 @@ def addkeyword(update, context):
                     parse_mode=ParseMode.HTML,
                     reply_markup=None)
 
+def print_groups(update, context):
+    """Get group names for all ids, may take a while to load properly"""
+    grouplist = [int(x) for x in CONFIG.get('TELEGRAM', 'bot_watch_group_ids').split(',')]
+    group_names_list = []
+    for group_id in grouplist:
+        try:
+            chat_obj = context.bot.get_chat(group_id)
+            group_names_list.append("{}: {}".format(chat_obj.title, group_id))
+            #print(chat_obj.title)
+        except Exception as _:
+            group_names_list.append(str(group_id))
+            #print("Err: " + str(group_id))
+
+    text = '<b>Groups:</b>\n\n' + "\n".join(group_names_list)
+
+    context.bot.send_message(text=text,
+        chat_id=update.message.chat_id,
+        parse_mode=ParseMode.HTML,
+        reply_markup=None)
+
 
 def addgroup(update, context):
     """Add a group by its ID"""
-    if len(context.args) < 1:
-        text = '<b>Groups:</b>\n\n' + json.loads(json.dumps(CONFIG['TELEGRAM']['bot_watch_group_ids']))
-        context.bot.send_message(text=text,
-                    chat_id=update.message.chat_id,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=None)
-    else:
+    if len(context.args) > 0:
         for _group_id in context.args:
             add_group_entry(_group_id)
 
-        text = 'Added entries {} to Groups\n\nNew Groups:\n{}'.format(
-            json.dumps(context.args),
-            json.loads(json.dumps(CONFIG['TELEGRAM']['bot_watch_group_ids'])))
+        text = 'Added entries {} to Groups'.format(
+            json.dumps(context.args))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
                     reply_markup=None)
+    print_groups(update, context)
 
 def removegroup(update, context):
     """Remove a group by its ID"""
-    if len(context.args) < 1:
-        text = '<b>Groups:</b>\n\n' + json.loads(json.dumps(CONFIG['TELEGRAM']['bot_watch_group_ids']))
-        context.bot.send_message(text=text,
-                    chat_id=update.message.chat_id,
-                    parse_mode=ParseMode.HTML,
-                    reply_markup=None)
-    else:
+    if len(context.args) > 0:
         for _group_id in context.args:
             remove_group_entry(_group_id)
 
-        text = 'Removed entries {} from Groups\n\nNew Groups:\n{}'.format(
-            json.dumps(context.args),
-            json.loads(json.dumps(CONFIG['TELEGRAM']['bot_watch_group_ids'])))
+        text = 'Removed entries {} from Groups'.format(
+            json.dumps(context.args))
         context.bot.send_message(text=text,
                     chat_id=update.message.chat_id,
                     parse_mode=ParseMode.HTML,
                     reply_markup=None)
+    print_groups(update, context)
+
 
 def add_group_entry(entry):
     """Add a group entry"""
-    grouplist = [int(x) for x in CONFIG.get('TELEGRAM','bot_watch_group_ids').split(',')]
+    grouplist = [int(x) for x in CONFIG.get('TELEGRAM', 'bot_watch_group_ids').split(',')]
     grouplist.append(int(entry))
     grouplist = '{}'.format(','.join(str(x) for x in grouplist))
     edit_config('TELEGRAM', 'bot_watch_group_ids', grouplist)
 
 def remove_group_entry(entry):
     """Remove a group entry"""
-    grouplist = [int(x) for x in CONFIG.get('TELEGRAM','bot_watch_group_ids').split(',')]
+    grouplist = [int(x) for x in CONFIG.get('TELEGRAM', 'bot_watch_group_ids').split(',')]
     grouplist.remove(int(entry))
     grouplist = '{}'.format(','.join(str(x) for x in grouplist))
     edit_config('TELEGRAM', 'bot_watch_group_ids', grouplist)
 
 def remove_blacklist_entry(entry):
     """Remove a certain blacklist entry"""
-    blacklist = read_config_raw('BOT','bot_blacklist')
+    blacklist = read_config_raw('BOT', 'bot_blacklist')
     blacklist.remove(entry)
     #print("blacklist: ",blacklist)
     blacklist = '["{}"]'.format('","'.join(str(x) for x in blacklist))
@@ -499,17 +497,36 @@ def process_message(update, context, message, message_text, user_id):
         spam_msg = spam_msg + spam_chat_message
 
         # Ban option
-        keyboard = [[InlineKeyboardButton((CONFIG['BOT']['bot_message_remove_user'].format(spammer)), callback_data='ban:'+spammer+':'+str(user_id)+':'+str(message.chat.id))]]
+        if CONFIG.getboolean('BOT', 'bot_auto_ban'):
+            # kick user
+            context.bot.kick_chat_member(
+                chat_id=message.chat.id,
+                user_id=user_id
+            )
+            text = CONFIG['BOT']['bot_message_user_removed'].format(spammer, message.chat.id)
+            context.bot.send_message(
+                chat_id=GROUP_ID,
+                message_id=message.message_id,
+                text=text,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+                reply_markup=None)
+        else:
+            keyboard = [
+                [InlineKeyboardButton(
+                    (CONFIG['BOT']['bot_message_remove_user'].format(spammer)),
+                    callback_data='ban:'+spammer+':'+str(user_id)+':'+str(message.chat.id))
+                    ]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
 
-        reply_markup = InlineKeyboardMarkup(keyboard)
+            # send message to group
+            context.bot.send_message(
+                chat_id=GROUP_ID,
+                text=spam_msg,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=False,
+                reply_markup=reply_markup)
 
-        # send message to group
-        context.bot.send_message(
-            chat_id=GROUP_ID,
-            text=spam_msg,
-            parse_mode=ParseMode.HTML,
-            disable_web_page_preview=False,
-            reply_markup=reply_markup)
         # delete message
         context.bot.delete_message(
             chat_id=message.chat.id,
