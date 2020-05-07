@@ -12,7 +12,7 @@ sys_enable_debug_log = 1
 # Telegram's BOT Key
 bot_api_key = bot_father_key
 # e.g.: -1234556789
-bot_group_id = report_group_id      
+bot_group_id = report_group_id
 # e.g.: 123456789,234567890.345678901
 bot_admins_ids = bot_admins_ids
 # e.g.: -12345678,-12345678901,234567134
@@ -20,14 +20,16 @@ bot_watch_group_ids = group_ids
 
 [MESSAGE]
 # e.g.: By using this bot you agree to the ToS on www.example.com
-message_disclaimer = message_disclaimer
+message_disclaimer =
 
 [BOT]
 # Blacklist words to watch out
 bot_blacklist = ["tinyurl.com", "bit.ly", "t.cn", "crypto", "bitcoin", "binance","dex-","joinchat","forex","profit","broker","capital","trader","money"]
 # Message to be displayed in the group after detecting a spam
-bot_message_remove_user=Remove User {}
+bot_message_remove_user = Remove User {}
 # Message to be displayed after user has been banned
-bot_message_user_removed=Removed User {} from Chat {}
+bot_message_user_removed = Removed User {} from Chat {}
 # Automatically remove service messages
 bot_remove_service_messages = True
+# Automatically ban users after being detected, unban manually if necessary
+bot_auto_ban = False
