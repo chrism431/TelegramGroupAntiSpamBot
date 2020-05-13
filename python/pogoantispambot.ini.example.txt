@@ -1,0 +1,43 @@
+[DATABASE]
+db_name = db_name
+db_user = db_user
+db_host = localhost
+db_password = db_password
+
+[SYSTEM]
+sys_log_dir = pogoantispambot.log
+sys_enable_debug_log = 1
+
+[TELEGRAM]
+# Telegram's BOT Key
+bot_api_key = bot_father_key
+# e.g.: -1234556789
+bot_group_id = report_group_id
+# e.g.: 123456789,234567890.345678901
+bot_admins_ids = bot_admins_ids
+# e.g.: -12345678,-12345678901,234567134
+bot_watch_group_ids = group_ids
+
+[MESSAGE]
+# e.g.: By using this bot you agree to the ToS on www.example.com
+message_disclaimer = Welcome to the AntiSpamBot
+
+[BOT]
+# Blacklist words to watch out
+bot_blacklist = ["tinyurl.com", "bit.ly", "t.cn", "crypto", "bitcoin", "binance","dex-","joinchat","forex","profit","broker","capital","trader","money"]
+# Message to be displayed in the group after detecting a spam
+bot_message_remove_user = Remove User {}
+# Message to be displayed after user has been banned
+bot_message_user_removed = Removed User {} from Chat {}
+# Message to be displayed in the group to unban user
+bot_message_unban_user = Unban User {}
+# Message to be displayed after user has been unbanned
+bot_message_user_unbanned = User {} unbanned from Chat {}
+# Automatically remove service messages
+bot_remove_service_messages = True
+# Automatically ban users after being detected, unban manually if necessary
+bot_auto_ban = False
+# Forward detected message to admin group
+bot_forward_message_to_group = True
+# Whitelist for users
+bot_whitelist_users =
