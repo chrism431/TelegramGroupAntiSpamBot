@@ -401,7 +401,9 @@ def edit_config(section, element, value):
 
 def read_config_int_list(section, element):
     """Read formatted config"""
-    return [int(x) for x in CONFIG.get(section, element).split(',')]
+    if CONFIG.get(section, element):
+        return [int(x) for x in CONFIG.get(section, element).split(',')]
+    return []
 
 def read_config_raw(section, element):
     """Read config value"""
@@ -453,6 +455,19 @@ def handle_messages(update, context):
     if message.caption is not None:
         process_message(update, context, message, message.caption, user_id)
 
+def check_user(update, context, chat_id, user_id):
+    """Check the user before processing the message
+
+    Don't look at administrator's or whitelist user's messages"""
+    chat = context.bot.get_chat(chat_id)
+    chat_admins = chat.get_administrators()
+    chat_admins_ids = [x.user.id for x in chat_admins]
+
+    whitelist_users = read_config_int_list('BOT', 'bot_whitelist_users')
+    if user_id in chat_admins_ids + whitelist_users:
+        return False
+    return True
+
 
 def process_message(update, context, message, message_text, user_id):
     """Process and handle the incoming message by the neural network
@@ -461,6 +476,10 @@ def process_message(update, context, message, message_text, user_id):
     message_text, user_id
     """
     #print("Message: {}\n".format(message_text))
+    # Check user if need to process message is present
+    should_process = check_user(update, context, message.chat_id, user_id)
+    if not should_process:
+        return
 
     _db = DB()
 
@@ -472,7 +491,8 @@ def process_message(update, context, message, message_text, user_id):
     features = []
     # [1] = blacklist
     bad_shortener = json.loads(CONFIG['BOT']['bot_blacklist'])
-    features.append(len([x for x in bad_shortener if x in message_text]))
+    matches = [x for x in bad_shortener if x in message_text]
+    features.append(len(matches))
 
     # [2] = joined_days
     sql = "SELECT DATEDIFF(NOW(),date) FROM `suspicious_users` WHERE `user_id` = '{}'".format(user_id)
@@ -508,7 +528,6 @@ def process_message(update, context, message, message_text, user_id):
             spammer = user_id
         # Track spam in file
         dbglog("Spam detected: {} ({}) - {}".format(str(spammer), str(features), message_text))
-        #print("Spam detected: {} ({}) - {}".format(str(spammer), str(features), message_text))
 
         # Group message output
         spam_msg = ""
@@ -518,10 +537,20 @@ def process_message(update, context, message, message_text, user_id):
 
         # Truncate for group message
         spam_chat_message = (message_text[:23] + '..') if len(message_text) > 25 else message_text
-        spam_msg = spam_msg + spam_chat_message
+        spam_msg = spam_msg + spam_chat_message + "\n\n"
+
+        # Information about matched words
+        spam_msg = spam_msg + "Keywords matched: " + ', '.join(matches)
+
         reply_markup = None
         # Ban option
         if CONFIG.getboolean('BOT', 'bot_auto_ban'):
+            # Kick user
+            context.bot.kick_chat_member(
+                chat_id=message.chat.id,
+                user_id=user_id
+            )
+            # Notify group chat
             text = CONFIG['BOT']['bot_message_user_removed'].format(spammer, update.message.chat.title)
             context.bot.send_message(
                 chat_id=GROUP_ID,
@@ -530,11 +559,6 @@ def process_message(update, context, message, message_text, user_id):
                 parse_mode=ParseMode.HTML,
                 disable_web_page_preview=True,
                 reply_markup=None)
-            # kick user
-            context.bot.kick_chat_member(
-                chat_id=message.chat.id,
-                user_id=user_id
-            )
             keyboard = [
                 [InlineKeyboardButton(
                     (CONFIG['BOT']['bot_message_unban_user'].format(spammer)),
@@ -549,7 +573,7 @@ def process_message(update, context, message, message_text, user_id):
                     ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-        # send message to group
+        # Send message to group
         context.bot.send_message(
             chat_id=GROUP_ID,
             text=spam_msg,
@@ -558,7 +582,7 @@ def process_message(update, context, message, message_text, user_id):
             reply_markup=reply_markup)
 
         if CONFIG.getboolean('BOT', 'bot_forward_message_to_group'):
-            # forward message to admin group
+            # Forward message to admin group
             context.bot.forward_message(
                 chat_id=GROUP_ID,
                 from_chat_id=message.chat.id,
@@ -589,14 +613,13 @@ def process_message(update, context, message, message_text, user_id):
 def error(update, context):
     """Log Errors caused by Updates."""
     print('Update "{}" caused error "{}"'.format(update, context.error))
-    LOGGER('Update "%s" caused error "%s"', update, context.error)
+    LOGGER.warning('Update "%s" caused error "%s"', update, context.error)
 
 def restart_bot():
     """Restart bot"""
     global UPDATER
     UPDATER.stop()
     print("Updater halted")
-
     threading.Thread(target=start_bot(restart=False)).start()
 
 
@@ -640,12 +663,11 @@ def start_bot(restart=True):
         # All Messages
         _dp.add_handler(MessageHandler((Filters.update.message | Filters.forwarded) & Filters.chat(_group_id), handle_messages))
 
-    WATCHED_GROUPS = len([int(x) for x in CONFIG.get('TELEGRAM', 'bot_watch_group_ids').split(',')])
-    print("Bot ready!")
+    WATCHED_GROUPS = len(group_ids)
     # Start the Bot
     UPDATER.start_polling()
     #UPDATER.idle()
-    print("Updater started")
+    print("Updater started. Bot ready!")
 
 def main():
     """main"""
