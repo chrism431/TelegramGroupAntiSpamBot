@@ -1,3 +1,5 @@
+[![Donate](https://img.shields.io/badge/Donate-PayPal-green.svg)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=PW9CERN8VCHHC)
+
 # TelegramGroupAntiSpamBot
 Simple Telegram anti-spam Bot written in Python to prevent Crypto/Finance/... spam messages via a simple method.
 
