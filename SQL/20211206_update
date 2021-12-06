@@ -1,0 +1,7 @@
+/*2021_12_06: Change table user_ids to BIGINT */;
+
+ALTER TABLE `kicked_users` MODIFY `user_id` BIGINT;
+ALTER TABLE `suspicious_messages` MODIFY `user_id` BIGINT;
+ALTER TABLE `suspicious_users` MODIFY `user_id` BIGINT;
+
+/*2021_12_06: =============================== */;
