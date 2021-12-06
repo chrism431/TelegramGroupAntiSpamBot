@@ -8,7 +8,7 @@ SET time_zone = "+00:00";
 
 CREATE TABLE `kicked_users` (
   `id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
+  `user_id` bigint(11) NOT NULL,
   `chat_id` bigint(11) NOT NULL,
   `time` date NOT NULL,
   `message` varchar(2048) NOT NULL
@@ -16,7 +16,7 @@ CREATE TABLE `kicked_users` (
 
 CREATE TABLE `suspicious_messages` (
   `id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
+  `user_id` bigint(11) NOT NULL,
   `group_id` bigint(11) NOT NULL,
   `date` datetime DEFAULT CURRENT_TIMESTAMP,
   `message` varchar(2048) NOT NULL
@@ -24,7 +24,7 @@ CREATE TABLE `suspicious_messages` (
 
 CREATE TABLE `suspicious_users` (
   `id` int(11) NOT NULL,
-  `user_id` int(11) NOT NULL,
+  `user_id` bigint(11) NOT NULL,
   `date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `group_id` bigint(13) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
