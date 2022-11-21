@@ -467,7 +467,7 @@ def handle_messages(update, context):
     """Handle the incoming sent message by the users"""
     user_id = update.message.from_user.id
     message = update.message
-    print (str(user_id)," sent: ", message)
+    #print (str(user_id)," sent: ", message)
     if message.text is not None:
         process_message(update, context, message, message.text, user_id)
 
