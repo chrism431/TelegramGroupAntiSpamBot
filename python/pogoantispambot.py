@@ -3,7 +3,7 @@
 
 # PoGoAntiSpam Bot
 
-# Copyright (C) 2020  @ChrisM431 (Telegram)
+# Copyright (C) 2022  @ChrisM431 (Telegram)
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -68,6 +68,8 @@ def dbglog(message):
     """Print Debug Logging in the file"""
     if int(CONFIG['SYSTEM']['sys_enable_debug_log']) == 1:
         logging.info(message)
+    else:
+        print(message)
 
 class DB:
     """Database operations class"""
@@ -186,7 +188,7 @@ def button(update, context):
         return
 
     if option == 'log':
-        text_tailed = tail(CONFIG['SYSTEM']['sys_log_dir'], 4)
+        text_tailed = tail(CONFIG['SYSTEM']['sys_log_dir'], 5)
         text = ""
         for item in text_tailed:
             text = text + item + "\n"
@@ -203,22 +205,34 @@ def button(update, context):
         name = option.split(':')[1]
         chat_id = option.split(':')[3]
         # kick user
-        context.bot.kick_chat_member(
+        ret = context.bot.kick_chat_member(
             chat_id=chat_id,
             user_id=user_id
         )
         #text = "User {} aus Chat {} entfernt".format(name,chat_id)
-        text = CONFIG['BOT']['bot_message_user_removed'].format(name, chat_id)
+        text = query.message.text + "\n\n"
+        if ret:
+            try:
+                chat_obj = context.bot.get_chat(chat_id)
+                chat_id = chat_obj.title
+                #print(chat_obj.title)
+            except Exception as _:
+                chat_id = chat_id
+            text = text + CONFIG['BOT']['bot_message_user_removed'].format(name, chat_id)
+        else:
+            text = text + "Kicking {} failed".format(name)
+
         context.bot.edit_message_text(
-            chat_id=query.message.chat_id,
-            message_id=query.message.message_id,
-            text=text,
-            parse_mode=ParseMode.HTML,
-            disable_web_page_preview=True,
-            reply_markup=None)
+                chat_id=query.message.chat_id,
+                message_id=query.message.message_id,
+                text=text,
+                parse_mode=ParseMode.HTML,
+                disable_web_page_preview=True,
+                reply_markup=None)
         return
 
     if 'unban:' in option:
+        _db = DB()
         user_id = option.split(':')[2]
         name = option.split(':')[1]
         chat_id = option.split(':')[3]
@@ -228,6 +242,12 @@ def button(update, context):
             user_id=user_id
         )
         if _return:
+            sql = """INSERT INTO `suspicious_messages` \
+                (`user_id`, `group_id`, `message`) \
+                VALUES ('{}','{}',{!a})
+                """.format(user_id, chat_id, 'save message due to unbanning')
+            _db.query(sql)
+            _db.commit()
             text = CONFIG['BOT']['bot_message_user_unbanned'].format(name, chat_id)
         else:
             text = 'Error unbanning <a href="tg://user?id=' + str(user_id) + '">' + str(name) + '</a>'
@@ -447,7 +467,7 @@ def handle_messages(update, context):
     """Handle the incoming sent message by the users"""
     user_id = update.message.from_user.id
     message = update.message
-    #print (str(user_id)," sent: ", message)
+    print (str(user_id)," sent: ", message)
     if message.text is not None:
         process_message(update, context, message, message.text, user_id)
 
@@ -540,7 +560,9 @@ def process_message(update, context, message, message_text, user_id):
         spam_msg = spam_msg + spam_chat_message + "\n\n"
 
         # Information about matched words
-        spam_msg = spam_msg + "Keywords matched: " + ', '.join(matches)
+        spam_msg = spam_msg + "Keywords matched: " + ', '.join(matches) + "\n"
+        # Features
+        spam_msg = spam_msg + "Features: " + str(features)
 
         reply_markup = None
         # Ban option
@@ -569,7 +591,7 @@ def process_message(update, context, message, message_text, user_id):
             keyboard = [
                 [InlineKeyboardButton(
                     (CONFIG['BOT']['bot_message_remove_user'].format(spammer)),
-                    callback_data='kick:'+spammer+':'+str(user_id)+':'+str(message.chat.title))
+                    callback_data='kick:'+spammer+':'+str(user_id)+':'+str(message.chat.id))
                     ]]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -612,7 +634,7 @@ def process_message(update, context, message, message_text, user_id):
 
 def error(update, context):
     """Log Errors caused by Updates."""
-    print('Update "{}" caused error "{}"'.format(update, context.error))
+    dbglog('Update "{}" caused error "{}"'.format(update, context.error))
     LOGGER.warning('Update "%s" caused error "%s"', update, context.error)
 
 def restart_bot():
