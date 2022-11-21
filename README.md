@@ -22,6 +22,8 @@ Python 3.x
 
 - mysqlclient
 
+- scikit-learn
+
 - numpy
 
 - joblib
